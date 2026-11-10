@@ -251,6 +251,34 @@ test("validation rejects XSS urls, bad schemes, oversize text and unknown platfo
   assert.equal(validateItem("nope").ok, false);
 });
 
+test("a null optional field is absent, so the row survives and the monogram shows", () => {
+  const result = validateItem(item({
+    networks: null,
+    displayName: null,
+    handle: null,
+    organizationName: null,
+    avatarUrl: null,
+    publicProfileUrl: null,
+  }));
+  assert.equal(result.ok, true);
+  for (const key of ["networks", "displayName", "handle", "organizationName", "avatarUrl", "publicProfileUrl"]) {
+    assert.equal(key in result.item, false);
+  }
+
+  // A live page whose items carry null optional fields keeps every item.
+  const page = normalizePayload(live([item({ avatarUrl: null, publicProfileUrl: null, displayName: null })]));
+  assert.equal(page.valid, true);
+  assert.equal(page.items.length, 1);
+  assert.equal(page.dropped, 0);
+
+  // The monogram fallback is reached, since there is no avatar to load.
+  const view = card();
+  paintActivity(view.root, result.item, { example: false, now: Date.parse("2026-10-02T09:15:00Z") });
+  assert.equal(view.monogram.hidden, false);
+  assert.equal(view.monogram.textContent, "SF");
+  assert.equal(view.avatar.children.find((child) => child.attrs["data-activity-avatar-img"] !== undefined), undefined);
+});
+
 test("paint uses textContent and a hardened profile link", () => {
   const view = card();
   const xss = "<img src=x onerror=alert(1)>";

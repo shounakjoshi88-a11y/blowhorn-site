@@ -74,6 +74,13 @@ function fail(reason) {
   return { ok: false, reason };
 }
 
+// A JSON null means the field is absent. REST APIs, Go backends and SQLite
+// serialize a missing optional value as null, so null must be read as "not
+// sent" and not as "sent but invalid".
+function isAbsent(value) {
+  return value === undefined || value === null;
+}
+
 export function isHttpsUrl(value, max = LIMITS.url) {
   if (typeof value !== "string") return false;
   const trimmed = value.trim();
@@ -125,7 +132,7 @@ export function validateItem(input) {
     example: false,
   };
 
-  if (input.networks !== undefined) {
+  if (!isAbsent(input.networks)) {
     if (!Array.isArray(input.networks) || input.networks.length < 1 || input.networks.length > LIMITS.networks) {
       return fail("networks");
     }
@@ -138,7 +145,7 @@ export function validateItem(input) {
     item.networks = networks;
   }
 
-  if (input.displayName !== undefined) {
+  if (!isAbsent(input.displayName)) {
     const displayName = plain(input.displayName, 1, LIMITS.name);
     if (!displayName) return fail("displayName");
     item.displayName = displayName;
@@ -146,20 +153,20 @@ export function validateItem(input) {
   // handle is not in meshery/schemas and Cloud does not send it; it is a local
   // extension kept for forward compatibility. Without one the handle slot stays
   // hidden. A malformed one is dropped, not the row.
-  if (input.handle !== undefined) {
+  if (!isAbsent(input.handle)) {
     const handle = typeof input.handle === "string" ? plain(input.handle.replace(/^@+/, ""), 1, LIMITS.handle) : null;
     if (handle && HANDLE.test(handle)) item.handle = handle;
   }
-  if (input.organizationName !== undefined) {
+  if (!isAbsent(input.organizationName)) {
     const organizationName = plain(input.organizationName, 1, LIMITS.organization);
     if (!organizationName) return fail("organizationName");
     item.organizationName = organizationName;
   }
-  if (input.avatarUrl !== undefined) {
+  if (!isAbsent(input.avatarUrl)) {
     if (!isHttpsUrl(input.avatarUrl)) return fail("avatarUrl");
     item.avatarUrl = input.avatarUrl.trim();
   }
-  if (input.publicProfileUrl !== undefined) {
+  if (!isAbsent(input.publicProfileUrl)) {
     if (!isHttpsUrl(input.publicProfileUrl, LIMITS.profileUrl)) return fail("publicProfileUrl");
     item.publicProfileUrl = input.publicProfileUrl.trim();
   }
@@ -183,7 +190,7 @@ export function normalizePayload(payload) {
   const empty = { items: [], example: false, dropped: 0, rawCount: 0, valid: false };
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return empty;
   // Unknown page keys are ignored; required EventFeedPage fields are checked below.
-  if (payload.example !== undefined && typeof payload.example !== "boolean") return empty;
+  if (!isAbsent(payload.example) && typeof payload.example !== "boolean") return empty;
   const example = payload.example === true;
   if (!Array.isArray(payload.data)) return empty;
   if (!example) {
